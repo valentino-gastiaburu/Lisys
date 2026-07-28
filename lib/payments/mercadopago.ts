@@ -41,7 +41,7 @@ export async function createPreference(params: {
       back_urls: {
         success: `${siteUrl}/orden/exito`,
         pending: `${siteUrl}/orden/exito`,
-        failure: `${siteUrl}/producto/${product.slug}`,
+        failure: `${siteUrl}/orden/error?product_slug=${product.slug}`,
       },
       auto_return: "approved",
       notification_url: `${siteUrl}/api/webhooks/mercadopago`,
@@ -93,6 +93,7 @@ export function verifyWebhookSignature(params: {
 export interface MercadoPagoPayment {
   id: string;
   status: string;
+  statusDetail: string;
   transactionAmountCents: number;
   currency: string;
   payerEmail: string;
@@ -113,9 +114,30 @@ export async function fetchPayment(paymentId: string): Promise<MercadoPagoPaymen
   return {
     id: String(json.id),
     status: json.status,
+    statusDetail: json.status_detail ?? "",
     transactionAmountCents: Math.round(json.transaction_amount * 100),
     currency: json.currency_id,
     payerEmail: json.payer?.email ?? "",
     externalReference: json.external_reference ?? null,
   };
 }
+
+/**
+ * Human-readable explanations for Mercado Pago's `status_detail` codes, per
+ * https://www.mercadopago.com.mx/developers/es/docs/checkout-api/how-tos/reasons-for-rejection
+ */
+export const REJECTION_REASONS: Record<string, string> = {
+  cc_rejected_bad_filled_card_number: "Revisá el número de la tarjeta.",
+  cc_rejected_bad_filled_date: "Revisá la fecha de vencimiento.",
+  cc_rejected_bad_filled_other: "Revisá los datos ingresados.",
+  cc_rejected_bad_filled_security_code: "Revisá el código de seguridad (CVV).",
+  cc_rejected_call_for_authorize: "Tu banco pide que autorices el pago directamente con ellos.",
+  cc_rejected_card_disabled: "La tarjeta está deshabilitada para compras online. Contactá a tu banco.",
+  cc_rejected_duplicated_payment: "Ya se registró un pago con estos mismos datos.",
+  cc_rejected_insufficient_amount: "Saldo o límite insuficiente.",
+  cc_rejected_invalid_installments: "Ese medio de pago no admite cuotas.",
+  cc_rejected_max_attempts: "Se alcanzó el límite de intentos permitidos con esta tarjeta.",
+  cc_rejected_blacklist: "El sistema antifraude bloqueó el pago.",
+  cc_rejected_high_risk: "El sistema antifraude marcó el pago como riesgo alto.",
+  cc_rejected_other_reason: "Rechazo del banco sin motivo específico — probá con otro medio de pago.",
+};

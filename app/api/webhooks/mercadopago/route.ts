@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
   const payment = await fetchPayment(dataId);
 
   if (payment.status !== "approved") {
+    // Logged even if the buyer never lands on /orden/error, so rejections
+    // are visible in Netlify's function logs for diagnosing new-account
+    // anti-fraud rejections.
+    console.warn("Pago no aprobado", {
+      paymentId: payment.id,
+      status: payment.status,
+      statusDetail: payment.statusDetail,
+      externalReference: payment.externalReference,
+    });
     return NextResponse.json({ ok: true });
   }
 
