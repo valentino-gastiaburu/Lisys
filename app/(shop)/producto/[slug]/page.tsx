@@ -63,6 +63,16 @@ export default async function ProductPage({
             <form action="/api/checkout" method="POST" className="mt-6 flex flex-col gap-3">
               <input type="hidden" name="product_id" value={product.id} />
               <label className="text-sm font-medium">
+                Nombre completo
+                <input
+                  type="text"
+                  name="full_name"
+                  required
+                  placeholder="Tu nombre y apellido"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </label>
+              <label className="text-sm font-medium">
                 Tu email
                 <input
                   type="email"

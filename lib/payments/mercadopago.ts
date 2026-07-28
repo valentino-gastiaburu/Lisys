@@ -7,9 +7,16 @@ const API_BASE = "https://api.mercadopago.com";
 export async function createPreference(params: {
   product: Product;
   buyerEmail?: string;
+  buyerName?: string;
 }): Promise<string> {
-  const { product, buyerEmail } = params;
+  const { product, buyerEmail, buyerName } = params;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+
+  // Mercado Pago's fraud scoring trusts a preference more when the payer has
+  // more than just an email — splitting the full name into name/surname is
+  // one of their own documented recommendations to reduce false rejections.
+  const [name, ...rest] = (buyerName ?? "").trim().split(/\s+/).filter(Boolean);
+  const surname = rest.join(" ") || undefined;
 
   const response = await fetch(`${API_BASE}/checkout/preferences`, {
     method: "POST",
@@ -30,7 +37,7 @@ export async function createPreference(params: {
       // Gumroad/Lemon Squeezy catalog — this ties the preference back to our
       // own product row for the webhook and the success page.
       external_reference: product.id,
-      payer: buyerEmail ? { email: buyerEmail } : undefined,
+      payer: buyerEmail ? { email: buyerEmail, name, surname } : undefined,
       back_urls: {
         success: `${siteUrl}/orden/exito`,
         pending: `${siteUrl}/orden/exito`,

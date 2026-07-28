@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const productId = formData.get("product_id");
   const email = formData.get("email");
+  const fullName = formData.get("full_name");
 
   if (typeof productId !== "string" || typeof email !== "string") {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
@@ -16,7 +17,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
   }
 
-  const checkoutUrl = await createPreference({ product, buyerEmail: email });
+  const checkoutUrl = await createPreference({
+    product,
+    buyerEmail: email,
+    buyerName: typeof fullName === "string" ? fullName : undefined,
+  });
 
   return NextResponse.redirect(checkoutUrl, { status: 303 });
 }
