@@ -3,6 +3,7 @@ import { getAllProductsForAdmin } from "@/lib/db/products";
 import { deleteProductAction } from "@/lib/actions/products";
 import { formatPrice } from "@/lib/format";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
+import { StorageUsageCard } from "@/components/admin/storage-usage";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,10 @@ export default async function AdminProductsPage() {
         >
           Nuevo producto
         </Link>
+      </div>
+
+      <div className="mt-4 max-w-sm">
+        <StorageUsageCard />
       </div>
 
       <table className="mt-6 w-full text-left text-sm">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/admin";
 import { signOutAction } from "@/lib/actions/auth";
+import { StorageUsageBadge } from "@/components/admin/storage-usage";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
@@ -17,11 +18,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Ver tienda ↗
             </Link>
           </nav>
-          <form action={signOutAction}>
-            <button type="submit" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-              Salir
-            </button>
-          </form>
+          <div className="flex items-center gap-4">
+            <StorageUsageBadge />
+            <form action={signOutAction}>
+              <button type="submit" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+                Salir
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>
