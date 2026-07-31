@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import { getPublishedProductBySlug } from "@/lib/db/products";
+import { getStoreSettings } from "@/lib/db/settings";
+import { computeUsdCents } from "@/lib/pricing";
 import { getPublicCoverUrl } from "@/lib/storage/files";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +17,9 @@ export default async function ProductPage({
   const { slug } = await params;
   const product = await getPublishedProductBySlug(slug);
   if (!product) notFound();
+
+  const settings = await getStoreSettings();
+  const usdCents = computeUsdCents(product, settings);
 
   const coverUrl = product.cover_image_path
     ? getPublicCoverUrl(product.cover_image_path)
@@ -60,7 +65,7 @@ export default async function ProductPage({
               {formatPrice(product.price_cents, product.currency)}
             </p>
 
-            <form action="/api/checkout" method="POST" className="mt-6 flex flex-col gap-3">
+            <form method="POST" className="mt-6 flex flex-col gap-3">
               <input type="hidden" name="product_id" value={product.id} />
               <label className="text-sm font-medium">
                 Nombre completo
@@ -82,14 +87,31 @@ export default async function ProductPage({
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </label>
+
               <button
                 type="submit"
+                formAction="/api/checkout"
                 className="rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700"
               >
-                Comprar ahora
+                Pagar con Mercado Pago
+              </button>
+              <p className="text-center text-xs text-zinc-500">Tarjeta o Yape, en soles.</p>
+
+              <div className="flex items-center gap-3 py-1 text-xs text-zinc-400">
+                <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+                o
+                <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+
+              <button
+                type="submit"
+                formAction="/api/checkout/paypal"
+                className="rounded-lg border-2 border-[#003087] px-4 py-3 font-semibold text-[#003087] transition hover:bg-[#003087]/5 dark:border-[#4593e0] dark:text-[#4593e0]"
+              >
+                Pagar con PayPal ({formatPrice(usdCents, "USD")})
               </button>
               <p className="text-center text-xs text-zinc-500">
-                Pago seguro con Mercado Pago. Descarga inmediata por email.
+                Para compradores fuera de Perú, en dólares.
               </p>
             </form>
           </div>

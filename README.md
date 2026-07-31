@@ -1,15 +1,17 @@
 # Lisys
 
 Marketplace de productos digitales (cursos, PDFs, plantillas) con catálogo público,
-back-office de administración y checkout con Mercado Pago. Next.js + Supabase, pensado para
-correr gratis en Netlify y ser portable a AWS más adelante.
+back-office de administración y checkout con Mercado Pago y PayPal. Next.js + Supabase,
+pensado para correr gratis en Netlify y ser portable a AWS más adelante.
 
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript, Tailwind CSS v4), runtime Node.js estándar.
 - **Supabase** (free tier): Postgres, Auth (solo admin), Storage (portadas y archivos digitales).
-- **Mercado Pago** (Checkout Pro): checkout con tarjeta vía API, ~4-6% de comisión (con IGV
-  incluido), sin cuota mensual, sin revisión previa de cuenta/sitio.
+- **Mercado Pago** (Checkout Pro): checkout local en soles, tarjeta o Yape, ~4-6% de comisión
+  (con IGV incluido), sin cuota mensual, sin revisión previa de cuenta/sitio.
+- **PayPal** (Orders API v2): checkout en dólares para compradores fuera de Perú (PayPal no
+  opera en soles). Ver "Cómo funciona el precio en USD" abajo.
 - **Resend** (opcional): email con el link de descarga tras la compra.
 - **Netlify** (free tier): hosting. Se eligió sobre Vercel porque el Hobby plan de Vercel
   prohíbe explícitamente uso comercial/e-commerce en sus términos de servicio.
@@ -45,6 +47,35 @@ correr gratis en Netlify y ser portable a AWS más adelante.
    verificable) — eso registra la venta en `/admin/ordenes` y dispara el email de respaldo con
    el link de descarga.
 
+El botón de **PayPal** sigue un camino parecido pero no idéntico (`lib/payments/paypal.ts`,
+`app/api/checkout/paypal/`, `app/api/webhooks/paypal/`):
+
+1. `POST /api/checkout/paypal` crea una **Order** vía la API de PayPal (`intent: CAPTURE`) y
+   redirige al link `approve`.
+2. A diferencia de Mercado Pago, aprobar el pago **no mueve la plata todavía** — PayPal exige
+   un segundo paso, `capture`. Para no depender de que el comprador vuelva a nuestra página
+   (podría cerrar la pestaña), **la captura se hace únicamente desde el webhook**, al recibir
+   el evento `CHECKOUT.ORDER.APPROVED`. Así el dinero se cobra igual aunque el navegador del
+   comprador ya no esté abierto.
+3. `/orden/exito` (cuando vuelve con `?provider=paypal&token=...`) simplemente espera unos
+   segundos a que la orden aparezca en nuestra base — no intenta capturar nada por su cuenta.
+4. La verificación de firma del webhook no se calcula a mano: se delega al endpoint propio de
+   PayPal (`/v1/notifications/verify-webhook-signature`), que es más simple y confiable que
+   reimplementar la verificación por certificado.
+
+## Cómo funciona el precio en USD
+
+PayPal no soporta soles como moneda. Cada producto tiene un precio en USD que se calcula así,
+por defecto:
+
+```
+USD = redondear_arriba( (precio_en_soles + A) / B )
+```
+
+`A` y `B` se configuran en `/admin/configuracion` (por defecto A=5, B=3). Cualquier producto
+puede además tener un **precio manual en USD** que ignora la fórmula — se activa al editar el
+producto (`price_usd_mode: "manual"`). Ver `lib/pricing.ts`.
+
 ## Setup local
 
 ### 1. Instalar dependencias
@@ -56,12 +87,12 @@ npm install
 ### 2. Crear el proyecto en Supabase
 
 1. Creá un proyecto en [supabase.com](https://supabase.com) (free tier).
-2. En **SQL Editor**, corré en orden [`0001_init.sql`](./supabase/migrations/0001_init.sql),
-   [`0002_gumroad.sql`](./supabase/migrations/0002_gumroad.sql) y
-   [`0003_mercadopago.sql`](./supabase/migrations/0003_mercadopago.sql).
-   (Si tu proyecto es nuevo y nunca corriste 0001/0002, igual corré los tres en orden — son
-   idempotentes.) Esto deja las tablas `categories`, `products`, `orders`, las políticas RLS,
-   y los buckets de Storage `product-covers` (público) y `product-files` (privado).
+2. En **SQL Editor**, corré en orden los 4 archivos de
+   [`supabase/migrations/`](./supabase/migrations/): `0001_init.sql`, `0002_gumroad.sql`,
+   `0003_mercadopago.sql`, `0004_paypal.sql`. (Si tu proyecto es nuevo, igual corré los cuatro
+   en orden — son idempotentes.) Esto deja las tablas `categories`, `products`, `orders`,
+   `store_settings`, las políticas RLS, y los buckets de Storage `product-covers` (público) y
+   `product-files` (privado).
 3. En **Authentication → Users**, creá manualmente el único usuario admin (email + contraseña).
    Ese email es el que vas a poner en `ADMIN_EMAIL`.
 4. En **Project Settings → API**, copiá `Project URL`, `Publishable key` (o `anon public`) y
@@ -85,15 +116,27 @@ npm install
    ```
    y usar esa URL de ngrok como `NEXT_PUBLIC_SITE_URL` mientras probás.
 
-### 4. Variables de entorno
+### 4. Configurar PayPal
+
+1. Creá una cuenta en [developer.paypal.com](https://developer.paypal.com/dashboard/applications).
+2. **Apps & Credentials** → dejalo en modo **Sandbox** para probar primero → **Create App**.
+3. Copiá el **Client ID** (`PAYPAL_CLIENT_ID`) y el **Secret** (`PAYPAL_CLIENT_SECRET`).
+4. Dentro de la app → **Webhooks** → **Add Webhook** → URL
+   `https://tu-dominio/api/webhooks/paypal` → evento `Checkout order approved`. Copiá el
+   **Webhook ID** que te muestra (`PAYPAL_WEBHOOK_ID` — no hay "secreto" que copiar, la
+   verificación se hace contra la propia API de PayPal).
+5. Dejá `PAYPAL_ENV=sandbox` mientras probás. Para cobrar de verdad, repetí los pasos 2-4 en
+   modo **Live** y cambiá a `PAYPAL_ENV=live`.
+
+### 5. Variables de entorno
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Completá `.env.local` con los valores de Supabase y Mercado Pago.
+Completá `.env.local` con los valores de Supabase, Mercado Pago y PayPal.
 
-### 5. Correr en desarrollo
+### 6. Correr en desarrollo
 
 ```bash
 npm run dev
@@ -111,8 +154,9 @@ apunta a una URL pública (ver punto 5 de arriba).
    automáticamente (usa `@netlify/plugin-nextjs`, ver [`netlify.toml`](./netlify.toml)).
 2. Cargá las mismas variables de `.env.local` en **Site settings → Environment variables**.
    Cambiá `NEXT_PUBLIC_SITE_URL` a tu dominio real de Netlify (o dominio propio).
-3. Actualizá la URL del webhook en el panel de Mercado Pago a la URL de producción.
+3. Actualizá las URLs de webhook en los paneles de Mercado Pago y PayPal a la URL de producción.
 4. Probá una compra completa con una [tarjeta de prueba de Mercado Pago](https://www.mercadopago.com.pe/developers/es/docs/checkout-pro/additional-content/your-integrations/test/cards)
+   y con una cuenta de [sandbox de PayPal](https://developer.paypal.com/dashboard/accounts)
    antes de operar con dinero real.
 
 ## Arquitectura y portabilidad a AWS
@@ -127,7 +171,7 @@ cambiar implementaciones puntuales, no reescribir la aplicación:
 | `lib/storage/files.ts` | Supabase Storage (compatible con S3) | Cambiar el cliente por el SDK de S3 real; incluso podés migrar el bucket directamente porque el protocolo es compatible. |
 | `lib/supabase/server.ts`, `lib/auth/admin.ts` | Supabase Auth (un único admin) | Reemplazable por Cognito o un JWT propio sin tocar las rutas — `requireAdmin()` es la única interfaz que el resto de la app usa. |
 | Runtime de la app | Netlify (Next.js sobre Node.js estándar, no edge) | `next build` con `output: "standalone"` corre igual en ECS/Fargate/Amplify con un Dockerfile mínimo. No se usó ninguna API específica de Netlify o Vercel. |
-| Pagos | Mercado Pago (checkout dinámico por API + webhook) | Sin dependencia de infraestructura — es un servicio externo. Cambiar de proveedor implica tocar solo `lib/payments/mercadopago.ts` y las dos rutas de `app/api/`. |
+| Pagos | Mercado Pago + PayPal (checkout dinámico por API + webhook) | Sin dependencia de infraestructura — son servicios externos. Cambiar o agregar un proveedor implica tocar solo `lib/payments/*.ts` y sus rutas en `app/api/`. |
 
 En resumen: todas las rutas (`app/**`) y Server Actions (`lib/actions/**`) llaman a
 `lib/db`, `lib/storage`, `lib/auth`, nunca directamente al SDK de Supabase. Ese es el punto
@@ -137,19 +181,22 @@ de corte para el día que se migre a AWS.
 
 ```
 app/
-  (shop)/                     Storefront público: home, categoría, producto, éxito de compra
-  admin/(protected)/          Back-office: productos, categorías, órdenes
-  admin/login/                Login del admin
-  api/checkout/                Crea la preference de Mercado Pago y redirige al checkout
-  api/webhooks/mercadopago/    Verifica la firma, confirma el pago y registra la orden
+  (shop)/                       Storefront público: home, categoría, producto, éxito de compra
+  admin/(protected)/            Back-office: productos, categorías, órdenes, configuración
+  admin/login/                  Login del admin
+  api/checkout/                 Crea la preference de Mercado Pago y redirige al checkout
+  api/checkout/paypal/          Crea la Order de PayPal y redirige a aprobar el pago
+  api/webhooks/mercadopago/     Verifica la firma, confirma el pago y registra la orden
+  api/webhooks/paypal/          Verifica la firma, captura el pago y registra la orden
 lib/
-  db/                         Acceso a datos (categorías, productos, órdenes)
-  storage/                    Subida de portadas y archivos + signed URLs de descarga
-  payments/                   Integración con la API de Mercado Pago
-  email/                      Envío del email de descarga (Resend)
-  supabase/                   Clientes de Supabase (server, browser, admin/service-role)
-  actions/                    Server Actions usadas por los formularios del admin
-  auth/                       Verificación de sesión de admin
-supabase/migrations/          Esquema SQL, RLS, buckets de Storage
-proxy.ts                      Protege /admin (reemplazo de middleware.ts en Next.js 16)
+  db/                          Acceso a datos (categorías, productos, órdenes, configuración)
+  storage/                     Subida de portadas y archivos + signed URLs de descarga
+  payments/                    Integración con las APIs de Mercado Pago y PayPal
+  pricing.ts                   Cálculo del precio en USD a partir del precio en soles
+  email/                       Envío del email de descarga (Resend)
+  supabase/                    Clientes de Supabase (server, browser, admin/service-role)
+  actions/                     Server Actions usadas por los formularios del admin
+  auth/                        Verificación de sesión de admin
+supabase/migrations/           Esquema SQL, RLS, buckets de Storage
+proxy.ts                       Protege /admin (reemplazo de middleware.ts en Next.js 16)
 ```

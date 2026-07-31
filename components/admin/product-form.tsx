@@ -1,16 +1,26 @@
-import type { Category } from "@/lib/types";
-import type { Product } from "@/lib/types";
+import type { Category, Product } from "@/lib/types";
+import type { StoreSettings } from "@/lib/db/settings";
+import { computeUsdCents } from "@/lib/pricing";
+import { formatPrice } from "@/lib/format";
 
 export function ProductForm({
   action,
   categories,
   product,
+  settings,
 }: {
   action: (formData: FormData) => void;
   categories: Category[];
   product?: Product;
+  settings: StoreSettings;
 }) {
   const defaultPrice = product ? (product.price_cents / 100).toFixed(2) : "";
+  const defaultUsdManual = product?.price_usd_manual_cents
+    ? (product.price_usd_manual_cents / 100).toFixed(2)
+    : "";
+  const calculatedPreview = product
+    ? formatPrice(computeUsdCents({ ...product, price_usd_mode: "calculated" }, settings), "USD")
+    : null;
 
   return (
     <form action={action} className="flex max-w-lg flex-col gap-4">
@@ -57,6 +67,43 @@ export function ProductForm({
             className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm uppercase dark:border-zinc-700 dark:bg-zinc-900"
           />
         </label>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+        <span className="text-sm font-medium">Precio en USD (para PayPal)</span>
+        <div className="mt-2 flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="price_usd_mode"
+              value="calculated"
+              defaultChecked={(product?.price_usd_mode ?? "calculated") === "calculated"}
+            />
+            Calculado automáticamente con la fórmula de{" "}
+            <a href="/admin/configuracion" className="underline">
+              Configuración
+            </a>
+            {calculatedPreview && <span className="text-zinc-500">(hoy: {calculatedPreview})</span>}
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="price_usd_mode"
+              value="manual"
+              defaultChecked={product?.price_usd_mode === "manual"}
+            />
+            Precio manual:
+            <input
+              type="number"
+              name="price_usd_manual"
+              step="0.01"
+              min="0"
+              defaultValue={defaultUsdManual}
+              placeholder="9.99"
+              className="w-24 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </label>
+        </div>
       </div>
 
       <label className="text-sm font-medium">

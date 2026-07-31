@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCategories } from "@/lib/db/categories";
 import { getProductByIdForAdmin } from "@/lib/db/products";
+import { getStoreSettings } from "@/lib/db/settings";
 import { updateProductAction } from "@/lib/actions/products";
 import { ProductForm } from "@/components/admin/product-form";
 
@@ -12,9 +13,10 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [categories, product] = await Promise.all([
+  const [categories, product, settings] = await Promise.all([
     getCategories(),
     getProductByIdForAdmin(id),
+    getStoreSettings(),
   ]);
 
   if (!product) notFound();
@@ -27,6 +29,7 @@ export default async function EditProductPage({
           action={updateProductAction.bind(null, id)}
           categories={categories}
           product={product}
+          settings={settings}
         />
       </div>
     </div>

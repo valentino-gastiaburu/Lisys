@@ -1,33 +1,71 @@
 import { fetchPayment } from "@/lib/payments/mercadopago";
 import { getProductByIdForAdmin } from "@/lib/db/products";
+import { getOrderByProviderOrderId } from "@/lib/db/orders";
 import { getSignedDownloadUrl } from "@/lib/storage/files";
 
 export const dynamic = "force-dynamic";
 
+const POLL_ATTEMPTS = 4;
+const POLL_DELAY_MS = 1000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function resolveMercadoPago(paymentId: string) {
+  const payment = await fetchPayment(paymentId).catch(() => null);
+  if (!payment) return { found: false as const };
+
+  if (payment.status === "approved" && payment.externalReference) {
+    const product = await getProductByIdForAdmin(payment.externalReference);
+    if (product) return { found: true as const, product };
+  }
+  return { found: false as const, stillPending: true };
+}
+
+async function resolvePaypal(orderId: string) {
+  // Capture only happens in the webhook (CHECKOUT.ORDER.APPROVED), so this
+  // page just watches for the resulting order row to show up.
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(POLL_DELAY_MS);
+
+    const order = await getOrderByProviderOrderId(orderId);
+    if (order?.status === "paid") {
+      const product = await getProductByIdForAdmin(order.product_id);
+      if (product) return { found: true as const, product };
+    }
+  }
+  return { found: false as const, stillPending: true };
+}
+
 export default async function OrderSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ payment_id?: string; collection_id?: string; status?: string }>;
+  searchParams: Promise<{
+    payment_id?: string;
+    collection_id?: string;
+    token?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const paymentId = params.payment_id ?? params.collection_id;
+  const mpPaymentId = params.payment_id ?? params.collection_id;
+  const paypalOrderId = params.token;
 
   let downloadUrl: string | null = null;
   let productTitle: string | null = null;
   let stillPending = false;
 
-  if (paymentId) {
-    const payment = await fetchPayment(paymentId).catch(() => null);
+  const result = mpPaymentId
+    ? await resolveMercadoPago(mpPaymentId)
+    : paypalOrderId
+      ? await resolvePaypal(paypalOrderId)
+      : null;
 
-    if (payment?.status === "approved" && payment.externalReference) {
-      const product = await getProductByIdForAdmin(payment.externalReference);
-      if (product) {
-        productTitle = product.title;
-        downloadUrl = await getSignedDownloadUrl(product.file_path);
-      }
-    } else if (payment) {
-      stillPending = true;
-    }
+  if (result?.found) {
+    productTitle = result.product.title;
+    downloadUrl = await getSignedDownloadUrl(result.product.file_path);
+  } else if (result?.stillPending) {
+    stillPending = true;
   }
 
   return (

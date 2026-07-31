@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Product, ProductWithCategory } from "@/lib/types";
+import type { Product, ProductWithCategory, PriceUsdMode } from "@/lib/types";
 
 const WITH_CATEGORY_SELECT = "*, category:categories(*)";
 
@@ -84,6 +84,8 @@ export interface ProductInput {
   cover_image_path?: string | null;
   file_path: string;
   status: "draft" | "published";
+  price_usd_mode?: PriceUsdMode;
+  price_usd_manual_cents?: number | null;
 }
 
 export async function createProduct(input: ProductInput): Promise<Product> {

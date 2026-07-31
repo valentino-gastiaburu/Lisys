@@ -16,7 +16,7 @@ import {
   deleteCoverImage,
 } from "@/lib/storage/files";
 import { uniqueSlug } from "@/lib/slugify";
-import type { ProductStatus } from "@/lib/types";
+import type { ProductStatus, PriceUsdMode } from "@/lib/types";
 
 function readCommonFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -26,8 +26,14 @@ function readCommonFields(formData: FormData) {
   const categoryIdRaw = String(formData.get("category_id") ?? "");
   const status: ProductStatus =
     formData.get("status") === "published" ? "published" : "draft";
+  const priceUsdMode: PriceUsdMode =
+    formData.get("price_usd_mode") === "manual" ? "manual" : "calculated";
+  const priceUsdManualInput = String(formData.get("price_usd_manual") ?? "").trim();
 
   if (!title) throw new Error("El título es obligatorio");
+  if (priceUsdMode === "manual" && !priceUsdManualInput) {
+    throw new Error("Ingresá el precio manual en USD, o elegí precio calculado");
+  }
 
   return {
     title,
@@ -36,6 +42,10 @@ function readCommonFields(formData: FormData) {
     currency,
     category_id: categoryIdRaw || null,
     status,
+    price_usd_mode: priceUsdMode,
+    price_usd_manual_cents: priceUsdManualInput
+      ? Math.round(parseFloat(priceUsdManualInput) * 100)
+      : null,
   };
 }
 

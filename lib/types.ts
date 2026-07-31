@@ -1,5 +1,6 @@
 export type ProductStatus = "draft" | "published";
 export type OrderStatus = "pending" | "paid" | "refunded";
+export type PriceUsdMode = "calculated" | "manual";
 
 export interface Category {
   id: string;
@@ -20,6 +21,8 @@ export interface Product {
   cover_image_path: string | null;
   file_path: string;
   status: ProductStatus;
+  price_usd_mode: PriceUsdMode;
+  price_usd_manual_cents: number | null;
   created_at: string;
   updated_at: string;
 }
