@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/admin";
 import { updateStoreSettings } from "@/lib/db/settings";
+import { uploadCoverImage } from "@/lib/storage/files";
+
+const HERO_IMAGE_PATH = "_site/hero";
 
 export async function updateStoreSettingsAction(formData: FormData) {
   await requireAdmin();
@@ -17,4 +20,29 @@ export async function updateStoreSettingsAction(formData: FormData) {
 
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos");
+}
+
+export async function updateHeroAction(formData: FormData) {
+  await requireAdmin();
+
+  const title = String(formData.get("hero_title") ?? "").trim();
+  const description = String(formData.get("hero_description") ?? "").trim();
+  const image = formData.get("hero_image");
+
+  if (!title) throw new Error("El título es obligatorio");
+
+  const update: Parameters<typeof updateStoreSettings>[0] = {
+    hero_title: title,
+    hero_description: description,
+  };
+
+  if (image instanceof File && image.size > 0) {
+    await uploadCoverImage(HERO_IMAGE_PATH, image);
+    update.hero_image_path = HERO_IMAGE_PATH;
+  }
+
+  await updateStoreSettings(update);
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/");
 }

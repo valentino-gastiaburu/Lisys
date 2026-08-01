@@ -4,21 +4,14 @@ import type { Product, ProductWithCategory, PriceUsdMode } from "@/lib/types";
 
 const WITH_CATEGORY_SELECT = "*, category:categories(*)";
 
-export async function getPublishedProducts(options?: {
-  categoryId?: string;
-}): Promise<ProductWithCategory[]> {
+export async function getPublishedProducts(): Promise<ProductWithCategory[]> {
   const supabase = createAdminClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from("products")
     .select(WITH_CATEGORY_SELECT)
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
-  if (options?.categoryId) {
-    query = query.eq("category_id", options.categoryId);
-  }
-
-  const { data, error } = await query;
   if (error) throw error;
   return data as unknown as ProductWithCategory[];
 }

@@ -28,7 +28,7 @@ export default async function ProductPage({
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
       <Link
-        href={product.category ? `/categoria/${product.category.slug}` : "/"}
+        href="/"
         className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
       >
         ← {product.category?.name ?? "Catálogo"}
@@ -59,9 +59,9 @@ export default async function ProductPage({
         </div>
 
         <div className="lg:col-span-2">
-          <div className="lg:sticky lg:top-24 rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
+          <div className="lg:sticky lg:top-24 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <h1 className="text-2xl font-bold tracking-tight">{product.title}</h1>
-            <p className="mt-3 text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+            <p className="mt-3 text-3xl font-bold text-amber-600 dark:text-amber-400">
               {formatPrice(product.price_cents, product.currency)}
             </p>
 
@@ -74,7 +74,7 @@ export default async function ProductPage({
                   name="full_name"
                   required
                   placeholder="Tu nombre y apellido"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-amber-500 dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </label>
               <label className="text-sm font-medium">
@@ -84,15 +84,16 @@ export default async function ProductPage({
                   name="email"
                   required
                   placeholder="vos@email.com"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-amber-500 dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </label>
 
               <button
                 type="submit"
                 formAction="/api/checkout"
-                className="rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700"
+                className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 font-semibold text-zinc-900 transition hover:bg-amber-400"
               >
+                <LockIcon />
                 Pagar con Mercado Pago
               </button>
               <p className="text-center text-xs text-zinc-500">Tarjeta o Yape, en soles.</p>
@@ -106,8 +107,9 @@ export default async function ProductPage({
               <button
                 type="submit"
                 formAction="/api/checkout/paypal"
-                className="rounded-lg border-2 border-[#003087] px-4 py-3 font-semibold text-[#003087] transition hover:bg-[#003087]/5 dark:border-[#4593e0] dark:text-[#4593e0]"
+                className="flex items-center justify-center gap-2 rounded-lg border-2 border-[#003087] px-4 py-3 font-semibold text-[#003087] transition hover:bg-[#003087]/5 dark:border-[#4593e0] dark:text-[#4593e0]"
               >
+                <LockIcon />
                 Pagar con PayPal ({formatPrice(usdCents, "USD")})
               </button>
               <p className="text-center text-xs text-zinc-500">
@@ -118,5 +120,17 @@ export default async function ProductPage({
         </div>
       </div>
     </main>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
+      <path
+        fillRule="evenodd"
+        d="M10 1a4 4 0 0 0-4 4v2H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V5a4 4 0 0 0-4-4Zm2 6V5a2 2 0 1 0-4 0v2h4Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }

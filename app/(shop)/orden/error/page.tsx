@@ -59,7 +59,7 @@ export default async function OrderErrorPage({
       {productSlug && (
         <Link
           href={`/producto/${productSlug}`}
-          className="mt-6 rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-700"
+          className="mt-6 rounded-lg bg-amber-500 px-6 py-3 font-semibold text-zinc-900 transition hover:bg-amber-400"
         >
           Volver a intentar
         </Link>

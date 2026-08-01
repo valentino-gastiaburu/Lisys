@@ -80,7 +80,7 @@ export function ProductForm({
               defaultChecked={(product?.price_usd_mode ?? "calculated") === "calculated"}
             />
             Calculado automáticamente con la fórmula de{" "}
-            <a href="/admin/configuracion" className="underline">
+            <a href="/admin/configuracion" className="text-amber-600 underline dark:text-amber-400">
               Configuración
             </a>
             {calculatedPreview && <span className="text-zinc-500">(hoy: {calculatedPreview})</span>}
@@ -146,7 +146,7 @@ export function ProductForm({
 
       <button
         type="submit"
-        className="mt-2 rounded bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="mt-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-amber-400"
       >
         {product ? "Guardar cambios" : "Crear producto"}
       </button>

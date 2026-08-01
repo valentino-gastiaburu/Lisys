@@ -3,7 +3,7 @@ import { getStorageUsage, formatBytes } from "@/lib/storage/usage";
 function barColor(pct: number) {
   if (pct > 90) return "bg-red-500";
   if (pct > 70) return "bg-amber-500";
-  return "bg-indigo-600";
+  return "bg-emerald-500";
 }
 
 export async function StorageUsageBadge() {

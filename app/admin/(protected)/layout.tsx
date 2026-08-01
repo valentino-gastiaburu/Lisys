@@ -8,17 +8,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-zinc-200 dark:border-zinc-800">
+      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <nav className="flex gap-4 text-sm font-medium">
-            <Link href="/admin/productos">Productos</Link>
-            <Link href="/admin/categorias">Categorías</Link>
-            <Link href="/admin/ordenes">Órdenes</Link>
-            <Link href="/admin/configuracion">Configuración</Link>
-            <Link href="/" className="text-zinc-500">
-              Ver tienda ↗
-            </Link>
-          </nav>
+          <div className="flex items-center gap-6">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-xs font-bold text-zinc-900">
+              LS
+            </span>
+            <nav className="flex gap-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              <Link href="/admin/productos" className="transition hover:text-amber-600 dark:hover:text-amber-400">
+                Productos
+              </Link>
+              <Link href="/admin/categorias" className="transition hover:text-amber-600 dark:hover:text-amber-400">
+                Categorías
+              </Link>
+              <Link href="/admin/ordenes" className="transition hover:text-amber-600 dark:hover:text-amber-400">
+                Órdenes
+              </Link>
+              <Link href="/admin/configuracion" className="transition hover:text-amber-600 dark:hover:text-amber-400">
+                Configuración
+              </Link>
+              <Link href="/" className="text-zinc-400 transition hover:text-amber-600 dark:hover:text-amber-400">
+                Ver tienda ↗
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-4">
             <StorageUsageBadge />
             <form action={signOutAction}>

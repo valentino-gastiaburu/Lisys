@@ -32,7 +32,7 @@ export function CategoryForm({
 
       <button
         type="submit"
-        className="mt-2 rounded bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="mt-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-amber-400"
       >
         {category ? "Guardar cambios" : "Crear categoría"}
       </button>

@@ -13,18 +13,6 @@ export async function getCategories(): Promise<Category[]> {
   return data;
 }
 
-export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-}
-
 export async function getCategoryById(id: string): Promise<Category | null> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
