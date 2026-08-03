@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getAllProductsForAdmin } from "@/lib/db/products";
-import { deleteProductAction } from "@/lib/actions/products";
+import { updateProductStatusAction } from "@/lib/actions/products";
 import { formatPrice } from "@/lib/format";
-import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import { StorageUsageCard } from "@/components/admin/storage-usage";
+import { StatusSelect } from "@/components/admin/status-select";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function AdminProductsPage() {
         <h1 className="text-xl font-semibold">Productos</h1>
         <Link
           href="/admin/productos/nuevo"
-          className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-amber-400"
+          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-emerald-400"
         >
           Nuevo producto
         </Link>
@@ -43,30 +43,12 @@ export default async function AdminProductsPage() {
               <td className="py-2 pr-4 text-zinc-500">{product.category?.name ?? "—"}</td>
               <td className="py-2 pr-4">{formatPrice(product.price_cents, product.currency)}</td>
               <td className="py-2 pr-4">
-                <span
-                  className={
-                    product.status === "published"
-                      ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                  }
-                >
-                  {product.status === "published" ? "Publicado" : "Borrador"}
-                </span>
+                <StatusSelect id={product.id} status={product.status} action={updateProductStatusAction} />
               </td>
               <td className="py-2 pr-4 text-right">
-                <div className="flex justify-end gap-3">
-                  <Link href={`/admin/productos/${product.id}`} className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-                    Editar
-                  </Link>
-                  <form action={deleteProductAction.bind(null, product.id)}>
-                    <ConfirmSubmitButton
-                      confirmMessage={`¿Eliminar "${product.title}"? Esta acción no se puede deshacer.`}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Eliminar
-                    </ConfirmSubmitButton>
-                  </form>
-                </div>
+                <Link href={`/admin/productos/${product.id}`} className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+                  Editar
+                </Link>
               </td>
             </tr>
           ))}

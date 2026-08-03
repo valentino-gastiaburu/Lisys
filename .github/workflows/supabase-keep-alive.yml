@@ -1,0 +1,30 @@
+name: Supabase keep-alive
+
+# Supabase pauses a free-tier project after 7 days with zero API requests —
+# it does not un-pause itself, someone has to click "Restore" in the
+# dashboard while the store sits broken in the meantime. One request a day
+# is enough to prevent that, so this just reads one row from the public
+# `categories` table (protected by RLS, same as any storefront visit would
+# do) on a daily schedule. See PROJECT_NOTES.md / aprendizajes.txt.
+
+on:
+  schedule:
+    - cron: "17 9 * * *" # ~9:17 UTC daily — off the hour on purpose
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab to test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        # The project URL isn't a secret (it's the same NEXT_PUBLIC_SUPABASE_URL
+        # baked into every page Lisys serves) — only the anon key needs to
+        # come from a repo secret, and even that is already public-by-design
+        # (it's in the browser bundle too, RLS is what actually protects data).
+        run: |
+          curl -sf "https://gsdhlfvekfeinvvldqwz.supabase.co/rest/v1/categories?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -o /dev/null
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}

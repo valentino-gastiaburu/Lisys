@@ -6,6 +6,7 @@ import type { Category, ProductWithCategory } from "@/lib/types";
 
 export interface ProductWithCover extends ProductWithCategory {
   coverUrl: string | null;
+  usdCents: number;
 }
 
 export function CatalogFilter({
@@ -42,7 +43,7 @@ export function CatalogFilter({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar productos..."
-            className="w-full rounded-lg border border-zinc-300 py-2 pl-9 pr-3 text-sm outline-amber-500 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded-lg border border-zinc-300 py-2 pl-9 pr-3 text-sm outline-emerald-500 dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>
       </div>
@@ -54,8 +55,8 @@ export function CatalogFilter({
             onClick={() => setCategoryId(null)}
             className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
               categoryId === null
-                ? "border-amber-500 bg-amber-500 text-zinc-900"
-                : "border-zinc-300 text-zinc-700 hover:border-amber-500 hover:text-amber-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-amber-400 dark:hover:text-amber-400"
+                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                : "border-zinc-300 text-zinc-700 hover:border-emerald-500 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-400 dark:hover:text-emerald-400"
             }`}
           >
             Todas
@@ -67,8 +68,8 @@ export function CatalogFilter({
               onClick={() => setCategoryId(category.id)}
               className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
                 categoryId === category.id
-                  ? "border-amber-500 bg-amber-500 text-zinc-900"
-                  : "border-zinc-300 text-zinc-700 hover:border-amber-500 hover:text-amber-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-amber-400 dark:hover:text-amber-400"
+                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                  : "border-zinc-300 text-zinc-700 hover:border-emerald-500 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-400 dark:hover:text-emerald-400"
               }`}
             >
               {category.name}
@@ -86,7 +87,7 @@ export function CatalogFilter({
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} coverUrl={product.coverUrl} />
+            <ProductCard key={product.id} product={product} coverUrl={product.coverUrl} usdCents={product.usdCents} />
           ))}
         </div>
       )}

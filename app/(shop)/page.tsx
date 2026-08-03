@@ -5,6 +5,7 @@ import { getPublishedProducts } from "@/lib/db/products";
 import { getCategories } from "@/lib/db/categories";
 import { getStoreSettings } from "@/lib/db/settings";
 import { getPublicCoverUrl } from "@/lib/storage/files";
+import { computeUsdCents } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function Home() {
   const productsWithCovers = products.map((product) => ({
     ...product,
     coverUrl: product.cover_image_path ? getPublicCoverUrl(product.cover_image_path) : null,
+    usdCents: computeUsdCents(product, settings),
   }));
 
   const heroImageUrl = settings.hero_image_path

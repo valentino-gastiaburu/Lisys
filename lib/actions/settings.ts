@@ -22,6 +22,18 @@ export async function updateStoreSettingsAction(formData: FormData) {
   revalidatePath("/admin/productos");
 }
 
+export async function updateCourseMarkupAction(formData: FormData) {
+  await requireAdmin();
+
+  const markup = parseFloat(String(formData.get("child_item_markup") ?? "0"));
+  if (!Number.isFinite(markup) || markup < 0) throw new Error("El monto no es válido");
+
+  await updateStoreSettings({ child_item_markup_cents: Math.round(markup * 100) });
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/productos");
+}
+
 export async function updateHeroAction(formData: FormData) {
   await requireAdmin();
 

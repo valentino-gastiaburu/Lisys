@@ -16,3 +16,17 @@ export function computeUsdCents(product: Product, settings: StoreSettings): numb
   const dollars = Math.ceil((soles + settings.usd_formula_add) / settings.usd_formula_divide);
   return dollars * 100;
 }
+
+/**
+ * A module's price is derived from its course's price divided by the
+ * sibling count, plus a markup — same formula for a video derived from its
+ * module — so buying a piece always costs more than buying its parent
+ * whole. Computed once at creation/edit time, not as an ongoing cascade.
+ */
+export function computeChildPriceCents(
+  parentEffectivePriceCents: number,
+  siblingCountIncludingNew: number,
+  markupCents: number
+): number {
+  return Math.ceil(parentEffectivePriceCents / siblingCountIncludingNew) + markupCents;
+}

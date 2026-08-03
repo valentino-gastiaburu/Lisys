@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhookSignature, captureOrder } from "@/lib/payments/paypal";
-import { createOrder, getOrderByProviderOrderId } from "@/lib/db/orders";
+import { createOrder, hasOrdersForProviderOrderId } from "@/lib/db/orders";
+import { getCartById, updateCartStatus } from "@/lib/db/carts";
 import { getProductByIdForAdmin } from "@/lib/db/products";
-import { getSignedDownloadUrl } from "@/lib/storage/files";
+import { getDeliverables, type Deliverable } from "@/lib/delivery";
 import { sendDownloadEmail } from "@/lib/email/resend";
 
 export async function POST(request: NextRequest) {
@@ -29,37 +30,72 @@ export async function POST(request: NextRequest) {
   }
 
   const orderId = event.resource.id as string;
-
-  // PayPal redelivers webhooks; skip if we already recorded this order.
-  const existing = await getOrderByProviderOrderId(orderId);
-  if (existing) {
-    return NextResponse.json({ ok: true });
-  }
-
   const capture = await captureOrder(orderId);
 
+  const cart = capture.cartId ? await getCartById(capture.cartId) : null;
+  if (!cart) {
+    console.error("Captura de PayPal sin carrito asociado", { orderId, cartId: capture.cartId });
+    return NextResponse.json({ ok: true });
+  }
+
+  // PayPal redelivers webhooks for the SAME order id — dedupe on that
+  // (mirrors the Mercado Pago webhook), not on cart.status, so a capture
+  // retry that later succeeds is never silently dropped just because an
+  // earlier attempt already flipped the cart to "rejected".
+  if (await hasOrdersForProviderOrderId(orderId)) {
+    return NextResponse.json({ ok: true });
+  }
+
+  const buyerEmail = capture.payerEmail.toLowerCase();
+
   if (capture.status !== "COMPLETED") {
-    console.warn("Captura de PayPal no completada", { orderId, status: capture.status });
+    console.warn("Captura de PayPal rechazada", { orderId, status: capture.status, reason: capture.declineReason });
+    for (const item of cart.items) {
+      await createOrder({
+        product_id: item.product_id,
+        buyer_email: buyerEmail,
+        amount_cents: item.price_cents,
+        currency: item.currency,
+        provider_order_id: orderId,
+        provider: "paypal",
+        payment_method: capture.paymentMethod,
+        status_detail: capture.declineReason,
+        status: "rejected",
+        cart_id: cart.id,
+      });
+    }
+    // Don't downgrade a cart a previous (out-of-order) notification already
+    // marked "paid" — this attempt's rejection doesn't undo that.
+    if (cart.status === "pending") await updateCartStatus(cart.id, "rejected");
     return NextResponse.json({ ok: true });
   }
 
-  const product = capture.productId ? await getProductByIdForAdmin(capture.productId) : null;
-  if (!product) {
-    console.error("Captura de PayPal sin producto asociado", { orderId, productId: capture.productId });
-    return NextResponse.json({ ok: true });
+  for (const item of cart.items) {
+    await createOrder({
+      product_id: item.product_id,
+      buyer_email: capture.payerEmail,
+      amount_cents: item.price_cents,
+      currency: item.currency,
+      provider_order_id: orderId,
+      provider: "paypal",
+      payment_method: capture.paymentMethod,
+      status_detail: capture.declineReason,
+      status: "paid",
+      cart_id: cart.id,
+    });
   }
+  await updateCartStatus(cart.id, "paid");
 
-  await createOrder({
-    product_id: product.id,
-    buyer_email: capture.payerEmail,
-    amount_cents: capture.amountCents,
-    currency: capture.currency,
-    provider_order_id: orderId,
-    status: "paid",
+  const deliverables: Deliverable[] = [];
+  for (const item of cart.items) {
+    const product = await getProductByIdForAdmin(item.product_id);
+    if (product) deliverables.push(...(await getDeliverables(product)));
+  }
+  await sendDownloadEmail({
+    to: buyerEmail,
+    productTitle: cart.items.length === 1 ? cart.items[0].title : "tu compra en Lisys",
+    items: deliverables,
   });
-
-  const downloadUrl = await getSignedDownloadUrl(product.file_path);
-  await sendDownloadEmail({ to: capture.payerEmail, productTitle: product.title, downloadUrl });
 
   return NextResponse.json({ ok: true });
 }

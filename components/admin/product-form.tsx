@@ -1,7 +1,11 @@
+import Image from "next/image";
 import type { Category, Product } from "@/lib/types";
 import type { StoreSettings } from "@/lib/db/settings";
 import { computeUsdCents } from "@/lib/pricing";
 import { formatPrice } from "@/lib/format";
+import { getPublicCoverUrl } from "@/lib/storage/files";
+import { FileInput } from "@/components/admin/file-input";
+import { ProductTypeFields } from "@/components/admin/product-type-fields";
 
 export function ProductForm({
   action,
@@ -15,11 +19,19 @@ export function ProductForm({
   settings: StoreSettings;
 }) {
   const defaultPrice = product ? (product.price_cents / 100).toFixed(2) : "";
+  const defaultCompareAtPrice = product?.compare_at_price_cents
+    ? (product.compare_at_price_cents / 100).toFixed(2)
+    : "";
   const defaultUsdManual = product?.price_usd_manual_cents
     ? (product.price_usd_manual_cents / 100).toFixed(2)
     : "";
   const calculatedPreview = product
     ? formatPrice(computeUsdCents({ ...product, price_usd_mode: "calculated" }, settings), "USD")
+    : null;
+  const currentFileName = product?.file_path?.split("/").pop() ?? null;
+  const currentCoverName = product?.cover_image_path?.split("/").pop() ?? null;
+  const currentCoverUrl = product?.cover_image_path
+    ? getPublicCoverUrl(product.cover_image_path)
     : null;
 
   return (
@@ -69,6 +81,23 @@ export function ProductForm({
         </label>
       </div>
 
+      <label className="text-sm font-medium">
+        Precio anterior (opcional)
+        <input
+          type="number"
+          name="compare_at_price"
+          step="0.01"
+          min="0"
+          defaultValue={defaultCompareAtPrice}
+          placeholder="dejar vacío para no mostrar comparación"
+          className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        />
+        <span className="mt-1 block text-xs font-normal text-zinc-500">
+          Si lo cargas, en la tienda se ve tachado al lado del precio actual (ej. precio de
+          lanzamiento). Tú lo actualizas a mano, no cambia solo.
+        </span>
+      </label>
+
       <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
         <span className="text-sm font-medium">Precio en USD (para PayPal)</span>
         <div className="mt-2 flex flex-col gap-2">
@@ -80,7 +109,7 @@ export function ProductForm({
               defaultChecked={(product?.price_usd_mode ?? "calculated") === "calculated"}
             />
             Calculado automáticamente con la fórmula de{" "}
-            <a href="/admin/configuracion" className="text-amber-600 underline dark:text-amber-400">
+            <a href="/admin/configuracion" className="text-emerald-600 underline dark:text-emerald-400">
               Configuración
             </a>
             {calculatedPreview && <span className="text-zinc-500">(hoy: {calculatedPreview})</span>}
@@ -129,24 +158,52 @@ export function ProductForm({
           defaultValue={product?.status ?? "draft"}
           className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="draft">Borrador</option>
-          <option value="published">Publicado</option>
+          <option value="draft">En proceso</option>
+          <option value="published">Activo</option>
+          <option value="inactive">Inactivo</option>
         </select>
       </label>
 
-      <label className="text-sm font-medium">
-        Archivo digital {product ? "(dejar vacío para mantener el actual)" : ""}
-        <input type="file" name="file" required={!product} className="mt-1 w-full text-sm" />
-      </label>
+      <ProductTypeFields
+        defaultProductType={product?.product_type ?? "simple"}
+        defaultDeliveryType={product?.delivery_type ?? "file"}
+        defaultExternalLink={product?.external_link ?? null}
+        defaultAllowModulePurchase={product?.allow_module_purchase ?? false}
+        defaultAllowVideoPurchase={product?.allow_video_purchase ?? false}
+        curriculumHref={product ? `/admin/productos/${product.id}/curriculum` : null}
+        fileInput={
+          <FileInput
+            name="file"
+            label="Archivo digital"
+            hint={product ? "dejar vacío para mantener el actual" : undefined}
+            required={!product}
+            currentLabel={currentFileName}
+          />
+        }
+      />
 
-      <label className="text-sm font-medium">
-        Portada (imagen, opcional)
-        <input type="file" name="cover_image" accept="image/*" className="mt-1 w-full text-sm" />
-      </label>
+      <FileInput
+        name="cover_image"
+        accept="image/*"
+        label="Portada"
+        hint="opcional"
+        currentLabel={currentCoverName}
+        currentPreview={
+          currentCoverUrl && (
+            <Image
+              src={currentCoverUrl}
+              alt="Portada actual"
+              width={48}
+              height={48}
+              className="h-12 w-12 shrink-0 rounded object-cover"
+            />
+          )
+        }
+      />
 
       <button
         type="submit"
-        className="mt-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-amber-400"
+        className="mt-2 rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-emerald-400"
       >
         {product ? "Guardar cambios" : "Crear producto"}
       </button>

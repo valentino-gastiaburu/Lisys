@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 dark:bg-black">
       <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-sm font-bold text-zinc-900">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-bold text-zinc-900">
             LS
           </span>
           <span className="font-semibold">Lisys</span>
@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 rounded-lg bg-amber-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-amber-400 disabled:opacity-50"
+            className="mt-2 rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-emerald-400 disabled:opacity-50"
           >
             {loading ? "Ingresando..." : "Ingresar"}
           </button>

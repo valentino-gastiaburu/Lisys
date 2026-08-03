@@ -1,0 +1,122 @@
+APRENDIZAJES — herramientas y plataformas que usa Lisys
+=========================================================
+Notas personales para entender qué es cada cosa que usamos, qué tan gratis
+es, y dónde encontrarla de nuevo cuando la necesite. Se va actualizando a
+medida que sumamos herramientas nuevas.
+
+
+NETLIFY — dónde vive la web
+----------------------------
+Qué es: el lugar donde corre la página (hosting). Cada vez que subimos
+cambios, Netlify construye la app y la pone en internet.
+Para qué lo usamos: alojar Lisys (la tienda + el backoffice).
+Gratis: 300 "créditos" al mes. Un deploy gasta 15 créditos (~$0.10). El
+tráfico real (visitas, cómputo, ancho de banda) también gasta créditos, no
+solo subir cambios.
+Pago: Personal $9/mes (1,000 créditos) — probablemente el que necesitemos
+primero. Pro $20/mes (3,000 créditos, sin límite de gente en el equipo).
+Link: https://www.netlify.com/pricing/
+
+
+SUPABASE — la base de datos y el almacenamiento de archivos
+--------------------------------------------------------------
+Qué es: guarda todo (productos, órdenes, carritos), maneja el login del
+admin, y guarda los archivos que vendemos (PDFs, plantillas). Es "backend
+como servicio" — reemplaza tener que armar un servidor propio.
+Para qué lo usamos: literalmente toda la data de Lisys vive acá.
+Gratis: 500 MB de base de datos, 1 GB de archivos, 5 GB de descargas al
+mes, 50,000 usuarios activos al mes.
+⚠️ OJO: si pasan 7 días sin ni una visita a la tienda, Supabase PAUSA el
+proyecto solo — y no se reactiva solo, hay que entrar y reactivarlo a mano.
+Mientras tanto la tienda está caída. Solución: un ping automático diario
+(estamos viendo cómo armarlo sin gastar créditos de Netlify — pendiente).
+Pago: Pro $25/mes (8 GB de base de datos, 100 GB de archivos, 250 GB de
+descargas, y ya no se pausa nunca por inactividad).
+Link: https://supabase.com/pricing
+
+
+RESEND — el que manda los emails de "tu compra está lista"
+---------------------------------------------------------------
+Qué es: servicio para mandar emails desde el código (no es Gmail/Outlook,
+es para emails automáticos que manda la propia web).
+Para qué lo usamos: el email que le llega al comprador con el link de
+descarga después de pagar, y el de "mis compras" cuando alguien pide que
+se lo reenvíen.
+Gratis: 3,000 emails al mes, tope de 100 por día.
+Pago: arranca en $20/mes (50,000 emails).
+Link: https://resend.com/pricing
+
+
+MERCADO PAGO — cobro en soles
+-------------------------------
+Qué es: la pasarela de pago para Perú/Latam — tarjetas, Yape, etc.
+Para qué lo usamos: la opción de pago en soles (PEN) del checkout.
+No es "gratis con límite" como las anteriores — cobra una comisión por
+cada venta (un % que depende del plazo en que querés que te liberen la
+plata; más rápido el retiro, más alta la comisión). El % exacto varía y no
+lo encontré fijo por búsqueda — conviene chequearlo directo acá:
+https://www.mercadopago.com.pe/ayuda/costos-recibir-pagos-checkout
+
+
+PAYPAL — cobro en dólares
+----------------------------
+Qué es: la pasarela de pago internacional — la usamos porque Mercado Pago
+no cobra en dólares.
+Para qué lo usamos: la opción de pago en USD del checkout (cuenta Live, no
+sandbox — ya está cobrando de verdad).
+Comisión: 5.4% de la venta + $0.30 USD por transacción, más ~4.5% extra si
+hay conversión de moneda de por medio.
+Link: https://www.paypal.com/pe/business/paypal-business-fees
+
+
+GITHUB ACTIONS — para tareas automáticas programadas
+---------------------------------------------------------
+Qué es: le podés decir a GitHub "corré este script todos los días a tal
+hora" y lo hace gratis, sin que dependa de que mi compu esté prendida.
+Para qué lo usamos: el ping diario que evita que Supabase se pause por
+inactividad — .github/workflows/supabase-keep-alive.yml, corre solo, todos
+los días.
+Gratis: en repos privados, 2,000 minutos al mes gratis. Un ping diario usa
+segundos, así que nunca se acerca al límite.
+
+
+CRON-JOB.ORG — servicio gratis para "pingear" una web en horario fijo
+--------------------------------------------------------------------------
+Qué es: una web donde configurás "andá a esta URL todos los días a esta
+hora" y ellos lo hacen por vos, gratis. No hace falta saber programar, es
+todo desde su panel.
+Para qué lo usaríamos: candidato para el ping diario que evita que
+Supabase se pause por inactividad (ver sección Supabase). No tocaría
+nuestro repo ni Netlify para nada — le pega directo a Supabase.
+Gratis: sí, sin tarjeta, uso normal para esto no tiene costo.
+Link: https://cron-job.org
+
+
+UPTIMEROBOT — igual que cron-job.org pero pensado para "avisame si se cae"
+-------------------------------------------------------------------------------
+Qué es: parecido a cron-job.org (pinguea una URL en horario fijo), pero su
+enfoque principal es monitoreo — te manda un email/alerta si la web deja de
+responder. De paso, sirve igual para el ping diario anti-pausa de Supabase.
+Para qué lo usaríamos: misma idea que cron-job.org, con el plus de que si
+algún día la tienda se cae de verdad, me entero por email en vez de
+enterarme porque un cliente se queja.
+Gratis: sí, plan free con chequeos cada 5 minutos, más que suficiente para
+esto.
+Link: https://uptimerobot.com
+
+
+GITHUB (el repositorio en sí, más allá de Actions)
+--------------------------------------------------------
+Qué es: donde vive el código de Lisys — cada cambio que hacemos queda
+guardado ahí con historial. Netlify está conectado a este repo: cuando se
+sube (push) algo nuevo, Netlify lo nota y arma un deploy automáticamente.
+Para qué lo usamos: guardar y versionar todo el código de la tienda.
+Gratis: repos privados ilimitados gratis para una persona sola (el límite
+de gente/colaboradores aparece recién en planes pagos para equipos).
+Link: https://github.com/pricing
+
+
+PENDIENTE
+------------
+- (nada por ahora — el ping diario anti-pausa de Supabase quedó resuelto
+  con un GitHub Action propio, ver arriba: .github/workflows/supabase-keep-alive.yml)

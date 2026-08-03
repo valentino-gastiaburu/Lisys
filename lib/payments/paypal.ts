@@ -1,5 +1,5 @@
 import "server-only";
-import type { Product } from "@/lib/types";
+import type { CartItem } from "@/lib/types";
 
 const API_BASE = process.env.PAYPAL_ENV === "live"
   ? "https://api-m.paypal.com"
@@ -29,13 +29,17 @@ async function getAccessToken(): Promise<string> {
 }
 
 export async function createOrder(params: {
-  product: Product;
-  usdCents: number;
+  cartId: string;
+  items: (CartItem & { usdCents: number })[];
   buyerEmail?: string;
 }): Promise<{ orderId: string; approveUrl: string }> {
-  const { product, usdCents, buyerEmail } = params;
+  const { cartId, items, buyerEmail } = params;
   const accessToken = await getAccessToken();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
+
+  const totalUsdCents = items.reduce((sum, item) => sum + item.usdCents, 0);
+  const description =
+    items.length === 1 ? items[0].title.slice(0, 127) : `Compra en Lisys (${items.length} ítems)`;
 
   const response = await fetch(`${API_BASE}/v2/checkout/orders`, {
     method: "POST",
@@ -47,12 +51,25 @@ export async function createOrder(params: {
       intent: "CAPTURE",
       purchase_units: [
         {
-          custom_id: product.id,
-          description: product.title.slice(0, 127),
+          // A PayPal order only has one custom_id per purchase_unit no
+          // matter how many items it bundles — this ties the order back to
+          // our own `carts` row (snapshotting exactly which products were
+          // bought) for the webhook and the success page, same as
+          // Mercado Pago's external_reference.
+          custom_id: cartId,
+          description,
           amount: {
             currency_code: "USD",
-            value: (usdCents / 100).toFixed(2),
+            value: (totalUsdCents / 100).toFixed(2),
+            breakdown: {
+              item_total: { currency_code: "USD", value: (totalUsdCents / 100).toFixed(2) },
+            },
           },
+          items: items.map((item) => ({
+            name: item.title.slice(0, 127),
+            quantity: "1",
+            unit_amount: { currency_code: "USD", value: (item.usdCents / 100).toFixed(2) },
+          })),
         },
       ],
       payer: buyerEmail ? { email_address: buyerEmail } : undefined,
@@ -60,7 +77,7 @@ export async function createOrder(params: {
         paypal: {
           experience_context: {
             return_url: `${siteUrl}/orden/exito?provider=paypal`,
-            cancel_url: `${siteUrl}/producto/${product.slug}`,
+            cancel_url: `${siteUrl}/carrito`,
           },
         },
       },
@@ -73,7 +90,12 @@ export async function createOrder(params: {
   }
 
   const json = await response.json();
-  const approveUrl = json.links.find((l: { rel: string }) => l.rel === "approve")?.href;
+  // When the order is created with an explicit `payment_source` (as above),
+  // PayPal's Orders v2 API names the redirect link "payer-action" instead of
+  // the "approve" rel used in the older, payment_source-less flow.
+  const approveUrl = json.links.find(
+    (l: { rel: string }) => l.rel === "approve" || l.rel === "payer-action"
+  )?.href;
   if (!approveUrl) throw new Error("PayPal no devolvió un link de aprobación");
 
   return { orderId: json.id, approveUrl };
@@ -81,17 +103,24 @@ export async function createOrder(params: {
 
 export interface PayPalCapture {
   status: string;
-  captureId: string;
-  amountCents: number;
-  currency: string;
+  captureId: string | null;
+  amountCents: number | null;
+  currency: string | null;
   payerEmail: string;
-  productId: string | null;
+  cartId: string | null;
+  /** Funding source used ("paypal", "card", "venmo", ...), from `payment_source`. */
+  paymentMethod: string | null;
+  /** PayPal's issue code (e.g. "INSTRUMENT_DECLINED") when the capture didn't complete. */
+  declineReason: string | null;
 }
 
 /**
  * Captures an approved order. Safe to call more than once for the same
  * order — if it was already captured (e.g. a redelivered webhook), fetches
- * the existing capture instead of erroring.
+ * the existing capture instead of erroring. On a genuine decline (e.g. the
+ * card was rejected at capture time), returns a non-"COMPLETED" result with
+ * `declineReason` instead of throwing, so the caller can record the failed
+ * attempt.
  */
 export async function captureOrder(orderId: string): Promise<PayPalCapture> {
   const accessToken = await getAccessToken();
@@ -111,7 +140,31 @@ export async function captureOrder(orderId: string): Promise<PayPalCapture> {
       (d: { issue: string }) => d.issue === "ORDER_ALREADY_CAPTURED"
     );
     if (!alreadyCaptured) {
-      throw new Error(`PayPal capture failed: ${response.status} ${JSON.stringify(json)}`);
+      // Genuine decline — look up the order for buyer/product/method context
+      // (best-effort; the capture itself failed, so these may be missing).
+      const declineReason = json?.details?.[0]?.issue ?? json?.name ?? `HTTP_${response.status}`;
+      let payerEmail = "";
+      let cartId: string | null = null;
+      let paymentMethod: string | null = null;
+      const getResponse = await fetch(`${API_BASE}/v2/checkout/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (getResponse.ok) {
+        const orderJson = await getResponse.json();
+        payerEmail = orderJson.payer?.email_address ?? "";
+        cartId = orderJson.purchase_units?.[0]?.custom_id ?? null;
+        paymentMethod = Object.keys(orderJson.payment_source ?? {})[0] ?? null;
+      }
+      return {
+        status: "DECLINED",
+        captureId: null,
+        amountCents: null,
+        currency: null,
+        payerEmail,
+        cartId,
+        paymentMethod,
+        declineReason,
+      };
     }
     const getResponse = await fetch(`${API_BASE}/v2/checkout/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -131,9 +184,18 @@ export async function captureOrder(orderId: string): Promise<PayPalCapture> {
     amountCents: Math.round(parseFloat(capture.amount.value) * 100),
     currency: capture.amount.currency_code,
     payerEmail: json.payer?.email_address ?? "",
-    productId: purchaseUnit.custom_id ?? null,
+    cartId: purchaseUnit.custom_id ?? null,
+    paymentMethod: Object.keys(json.payment_source ?? {})[0] ?? null,
+    declineReason: capture.status !== "COMPLETED" ? capture.status : null,
   };
 }
+
+/** Human-readable labels for PayPal's funding-source keys. */
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  paypal: "Saldo/cuenta PayPal",
+  card: "Tarjeta (vía PayPal)",
+  venmo: "Venmo",
+};
 
 /** Delegates signature verification to PayPal's own endpoint instead of
  * re-implementing certificate-based signature checking ourselves. */

@@ -1,15 +1,16 @@
 import "server-only";
 import crypto from "node:crypto";
-import type { Product } from "@/lib/types";
+import type { CartItem } from "@/lib/types";
 
 const API_BASE = "https://api.mercadopago.com";
 
 export async function createPreference(params: {
-  product: Product;
+  cartId: string;
+  items: CartItem[];
   buyerEmail?: string;
   buyerName?: string;
 }): Promise<string> {
-  const { product, buyerEmail, buyerName } = params;
+  const { cartId, items, buyerEmail, buyerName } = params;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!;
 
   // Mercado Pago's fraud scoring trusts a preference more when the payer has
@@ -25,23 +26,24 @@ export async function createPreference(params: {
       Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
     },
     body: JSON.stringify({
-      items: [
-        {
-          title: product.title,
-          quantity: 1,
-          unit_price: product.price_cents / 100,
-          currency_id: product.currency,
-        },
-      ],
+      items: items.map((item) => ({
+        title: item.title,
+        quantity: 1,
+        unit_price: item.price_cents / 100,
+        currency_id: item.currency,
+      })),
       // Mercado Pago has no way to create a product ahead of time like a
-      // Gumroad/Lemon Squeezy catalog — this ties the preference back to our
-      // own product row for the webhook and the success page.
-      external_reference: product.id,
+      // Gumroad/Lemon Squeezy catalog, and a preference only carries a
+      // single external_reference no matter how many items it has — this
+      // ties the preference back to our own `carts` row (snapshotting
+      // exactly which products were bought) for the webhook and the
+      // success page.
+      external_reference: cartId,
       payer: buyerEmail ? { email: buyerEmail, name, surname } : undefined,
       back_urls: {
         success: `${siteUrl}/orden/exito`,
         pending: `${siteUrl}/orden/exito`,
-        failure: `${siteUrl}/orden/error?product_slug=${product.slug}`,
+        failure: `${siteUrl}/orden/error?cart_id=${cartId}`,
       },
       auto_return: "approved",
       notification_url: `${siteUrl}/api/webhooks/mercadopago`,
@@ -94,6 +96,7 @@ export interface MercadoPagoPayment {
   id: string;
   status: string;
   statusDetail: string;
+  paymentMethodId: string;
   transactionAmountCents: number;
   currency: string;
   payerEmail: string;
@@ -115,6 +118,7 @@ export async function fetchPayment(paymentId: string): Promise<MercadoPagoPaymen
     id: String(json.id),
     status: json.status,
     statusDetail: json.status_detail ?? "",
+    paymentMethodId: json.payment_method_id ?? "",
     transactionAmountCents: Math.round(json.transaction_amount * 100),
     currency: json.currency_id,
     payerEmail: json.payer?.email ?? "",
@@ -140,4 +144,17 @@ export const REJECTION_REASONS: Record<string, string> = {
   cc_rejected_blacklist: "El sistema antifraude bloqueó el pago.",
   cc_rejected_high_risk: "El sistema antifraude marcó el pago como riesgo alto.",
   cc_rejected_other_reason: "Rechazo del banco sin motivo específico — probá con otro medio de pago.",
+};
+
+/** Human-readable labels for Mercado Pago's `payment_method_id` codes. */
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  yape: "Yape",
+  account_money: "Dinero en cuenta MP",
+  pagoefectivo_atm: "PagoEfectivo",
+  debvisa: "Débito Visa",
+  debmaster: "Débito Mastercard",
+  visa: "Visa",
+  master: "Mastercard",
+  amex: "American Express",
+  diners: "Diners Club",
 };

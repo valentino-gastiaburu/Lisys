@@ -7,7 +7,7 @@ export function TrustSection() {
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           Por tratarse de productos digitales, las ventas son finales. Si el archivo no te llega
-          o está dañado, escribinos y te lo reenviamos o te devolvemos el pago sin vueltas.
+          o está dañado, escríbenos y te lo reenviamos o te devolvemos el pago sin problemas.
         </p>
       </div>
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
@@ -15,7 +15,7 @@ export function TrustSection() {
           Soporte
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          ¿Tu compra no llegó o tenés una duda antes de pagar? Escribinos a{" "}
+          ¿Tu compra no llegó o tienes una duda antes de pagar? Escríbenos a{" "}
           <a href="mailto:soporte@lisys.com" className="font-medium underline underline-offset-2">
             soporte@lisys.com
           </a>{" "}

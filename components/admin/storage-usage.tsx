@@ -2,7 +2,7 @@ import { getStorageUsage, formatBytes } from "@/lib/storage/usage";
 
 function barColor(pct: number) {
   if (pct > 90) return "bg-red-500";
-  if (pct > 70) return "bg-amber-500";
+  if (pct > 70) return "bg-emerald-500";
   return "bg-emerald-500";
 }
 
@@ -35,12 +35,12 @@ export async function StorageUsageCard() {
       </div>
       {pct > 90 ? (
         <p className="mt-2 text-xs text-red-600">
-          Te estás quedando sin espacio — borrá algún producto que ya no vendas antes de subir
+          Te estás quedando sin espacio — elimina algún producto que ya no vendas antes de subir
           archivos nuevos.
         </p>
       ) : pct > 70 ? (
-        <p className="mt-2 text-xs text-amber-600">
-          Vas superando el 70% del espacio gratuito. Conviene ir pensando qué productos podés
+        <p className="mt-2 text-xs text-emerald-600">
+          Vas superando el 70% del espacio gratuito. Conviene ir pensando qué productos puedes
           bajar o reemplazar.
         </p>
       ) : null}

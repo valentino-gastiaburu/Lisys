@@ -10,12 +10,12 @@ export default async function OrderErrorPage({
     payment_id?: string;
     collection_id?: string;
     status?: string;
-    product_slug?: string;
+    cart_id?: string;
   }>;
 }) {
   const params = await searchParams;
   const paymentId = params.payment_id ?? params.collection_id;
-  const productSlug = params.product_slug;
+  const cartId = params.cart_id;
 
   const payment = paymentId ? await fetchPayment(paymentId).catch(() => null) : null;
 
@@ -45,7 +45,7 @@ export default async function OrderErrorPage({
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">{friendlyReason}</p>
       ) : (
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Mercado Pago rechazó el pago. Probá con otro medio de pago o volvé a intentar en unos
+          Mercado Pago rechazó el pago. Prueba con otro medio de pago o vuelve a intentar en unos
           minutos.
         </p>
       )}
@@ -56,10 +56,10 @@ export default async function OrderErrorPage({
         </p>
       )}
 
-      {productSlug && (
+      {cartId && (
         <Link
-          href={`/producto/${productSlug}`}
-          className="mt-6 rounded-lg bg-amber-500 px-6 py-3 font-semibold text-zinc-900 transition hover:bg-amber-400"
+          href="/carrito"
+          className="mt-6 rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-zinc-900 transition hover:bg-emerald-400"
         >
           Volver a intentar
         </Link>

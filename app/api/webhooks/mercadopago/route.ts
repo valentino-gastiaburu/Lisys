@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhookSignature, fetchPayment } from "@/lib/payments/mercadopago";
-import { createOrder, getOrderByProviderOrderId } from "@/lib/db/orders";
+import { createOrder, hasOrdersForProviderOrderId } from "@/lib/db/orders";
+import { getCartById, updateCartStatus } from "@/lib/db/carts";
 import { getProductByIdForAdmin } from "@/lib/db/products";
-import { getSignedDownloadUrl } from "@/lib/storage/files";
+import { getDeliverables, type Deliverable } from "@/lib/delivery";
 import { sendDownloadEmail } from "@/lib/email/resend";
 
 export async function POST(request: NextRequest) {
@@ -26,44 +27,95 @@ export async function POST(request: NextRequest) {
 
   const payment = await fetchPayment(dataId);
 
-  if (payment.status !== "approved") {
-    // Logged even if the buyer never lands on /orden/error, so rejections
-    // are visible in Netlify's function logs for diagnosing new-account
-    // anti-fraud rejections.
-    console.warn("Pago no aprobado", {
+  // "pending"/"in_process"/"authorized" aren't final — don't record an
+  // attempt yet, since a later notification for the same payment id will
+  // carry the real outcome.
+  const isTerminal = payment.status === "approved" || payment.status === "rejected" ||
+    payment.status === "cancelled";
+  if (!isTerminal) {
+    console.warn("Pago de Mercado Pago no finalizado todavía", {
       paymentId: payment.id,
       status: payment.status,
       statusDetail: payment.statusDetail,
-      externalReference: payment.externalReference,
     });
     return NextResponse.json({ ok: true });
   }
 
-  // Mercado Pago redelivers notifications; skip if we already recorded this payment.
-  const existing = await getOrderByProviderOrderId(payment.id);
-  if (existing) {
+  const cartId = payment.externalReference;
+  const cart = cartId ? await getCartById(cartId) : null;
+
+  if (!cart) {
+    console.error("Pago de Mercado Pago sin carrito asociado", { paymentId: payment.id, cartId });
     return NextResponse.json({ ok: true });
   }
 
-  const productId = payment.externalReference;
-  const product = productId ? await getProductByIdForAdmin(productId) : null;
-
-  if (!product) {
-    console.error("Pago de Mercado Pago sin producto asociado", { paymentId: payment.id, productId });
+  // Mercado Pago redelivers notifications for the SAME payment id — dedupe
+  // on that, not on cart.status. A buyer can retry with a different card
+  // after a rejection using the same preference/cart, which produces a
+  // second payment id for the same cart; keying off cart.status would make
+  // that successful retry silently vanish once the first attempt had
+  // already flipped the cart to "rejected".
+  if (await hasOrdersForProviderOrderId(payment.id)) {
     return NextResponse.json({ ok: true });
   }
 
-  await createOrder({
-    product_id: product.id,
-    buyer_email: payment.payerEmail,
-    amount_cents: payment.transactionAmountCents,
-    currency: payment.currency,
-    provider_order_id: payment.id,
-    status: "paid",
+  const buyerEmail = payment.payerEmail.toLowerCase();
+
+  if (payment.status !== "approved") {
+    // Logged even if the buyer never lands on /orden/error, so rejections
+    // are visible in Netlify's function logs for diagnosing new-account
+    // anti-fraud rejections.
+    console.warn("Pago rechazado", {
+      paymentId: payment.id,
+      status: payment.status,
+      statusDetail: payment.statusDetail,
+    });
+    for (const item of cart.items) {
+      await createOrder({
+        product_id: item.product_id,
+        buyer_email: buyerEmail,
+        amount_cents: item.price_cents,
+        currency: item.currency,
+        provider_order_id: payment.id,
+        provider: "mercadopago",
+        payment_method: payment.paymentMethodId,
+        status_detail: payment.statusDetail,
+        status: "rejected",
+        cart_id: cart.id,
+      });
+    }
+    // Don't downgrade a cart a previous (out-of-order) notification already
+    // marked "paid" — this attempt's rejection doesn't undo that.
+    if (cart.status === "pending") await updateCartStatus(cart.id, "rejected");
+    return NextResponse.json({ ok: true });
+  }
+
+  for (const item of cart.items) {
+    await createOrder({
+      product_id: item.product_id,
+      buyer_email: payment.payerEmail,
+      amount_cents: item.price_cents,
+      currency: item.currency,
+      provider_order_id: payment.id,
+      provider: "mercadopago",
+      payment_method: payment.paymentMethodId,
+      status_detail: payment.statusDetail,
+      status: "paid",
+      cart_id: cart.id,
+    });
+  }
+  await updateCartStatus(cart.id, "paid");
+
+  const deliverables: Deliverable[] = [];
+  for (const item of cart.items) {
+    const product = await getProductByIdForAdmin(item.product_id);
+    if (product) deliverables.push(...(await getDeliverables(product)));
+  }
+  await sendDownloadEmail({
+    to: buyerEmail,
+    productTitle: cart.items.length === 1 ? cart.items[0].title : "tu compra en Lisys",
+    items: deliverables,
   });
-
-  const downloadUrl = await getSignedDownloadUrl(product.file_path);
-  await sendDownloadEmail({ to: payment.payerEmail, productTitle: product.title, downloadUrl });
 
   return NextResponse.json({ ok: true });
 }

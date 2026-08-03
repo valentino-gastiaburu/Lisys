@@ -14,7 +14,7 @@ export default async function AdminCategoriesPage() {
         <h1 className="text-xl font-semibold">Categorías</h1>
         <Link
           href="/admin/categorias/nuevo"
-          className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-amber-400"
+          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-zinc-900 transition hover:bg-emerald-400"
         >
           Nueva categoría
         </Link>
